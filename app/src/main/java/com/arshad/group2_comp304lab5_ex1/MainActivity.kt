@@ -1,46 +1,44 @@
 package com.arshad.group2_comp304lab5_ex1
 
+import android.content.Intent
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.arshad.group2_comp304lab5_ex1.ui.theme.Group2_COMP304Lab5_Ex1Theme
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
+class MainActivity : AppCompatActivity()
+{
+
+    //variables
+    private val typesOfLandmarks = mutableListOf("Old Buildings", "Museums", "Attractions")
+    private lateinit var landmarkTypes: LandmarkTypesAdapter
+    private lateinit var landmarkClassification: RecyclerView
+
+    override fun onCreate(savedInstanceState: Bundle?)
+    {
         super.onCreate(savedInstanceState)
-        setContent {
-            Group2_COMP304Lab5_Ex1Theme {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Greeting("Android")
-                }
-            }
+        setContentView(R.layout.activity_main)
+
+        landmarkTypes = LandmarkTypesAdapter(typesOfLandmarks)
+
+        landmarkClassification = findViewById(R.id.typesOfLandmarks)
+        landmarkClassification.layoutManager = LinearLayoutManager(this)
+        landmarkClassification.adapter = landmarkTypes
+
+        landmarkTypes.onLandmarkTypeClickListener { x ->
+            selectLandmarkType(x)
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    Group2_COMP304Lab5_Ex1Theme {
-        Greeting("Android")
+    private fun selectLandmarkType(x: String)
+    {
+        val selectedType = when (x)
+        {
+            "Old Buildings" -> Intent(this, OldBuildingsActivity::class.java)
+            "Museums" -> Intent(this, MuseumsActivity::class.java)
+            "Attractions" -> Intent(this, AttractionsActivity::class.java)
+            else -> return
+        }
+        startActivity(selectedType)
     }
 }
