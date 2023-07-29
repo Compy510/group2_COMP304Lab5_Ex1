@@ -28,7 +28,8 @@ class OldBuildingsActivity : AppCompatActivity()
         landmarks.onLandmarkClickListener { x ->
             //open map for the landmark
             //opens main activity, just a test to make sure button works
-            val intent = Intent(this, MainActivity::class.java)
+            val intent = Intent(this, MapsActivity::class.java)
+            intent.putExtra("landmarkName", x)
             startActivity(intent)
         }
 
