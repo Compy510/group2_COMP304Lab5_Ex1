@@ -1,10 +1,22 @@
 package com.arshad.group2_comp304lab5_ex1
 
+import android.Manifest
+import android.app.Dialog
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Color
+import android.location.LocationManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.TextView
+import androidx.core.app.ActivityCompat
 
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -13,18 +25,26 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.arshad.group2_comp304lab5_ex1.databinding.ActivityMaps2Binding
-
+import com.google.android.gms.maps.model.CircleOptions
+import com.google.android.libraries.places.api.Places
+import java.lang.Math.round
+import kotlin.math.pow
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var map: GoogleMap
     private lateinit var binding: ActivityMaps2Binding
 
+    private val SEARCHRADIUS : Int = 2500
+
+    val apiKey = "YOUR_API_KEY"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMaps2Binding.inflate(layoutInflater)
         setContentView(binding.root)
+        Places.initialize(applicationContext, apiKey)
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
@@ -43,6 +63,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
      */
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
+
         val landmarkName = intent.getStringExtra("landmarkName")
         if (landmarkName != null) {
             // Use the landmarkName to show the selected landmark on the map.
@@ -64,17 +85,82 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             val selectedLandmarkLocation = landmarkCoordinates[landmarkName]
             if (selectedLandmarkLocation != null) {
                 map.addMarker(MarkerOptions().position(selectedLandmarkLocation).title(landmarkName))
+                addCircle(selectedLandmarkLocation, SEARCHRADIUS.toDouble())
                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(selectedLandmarkLocation, 15f))
+
+            }
+            val nearbyPlacesAPI = FindNearbyRestaurants(this, apiKey)
+            val userLocation =
+                selectedLandmarkLocation?.let { LatLng(it.latitude, selectedLandmarkLocation.longitude) } // San Francisco
+
+            if (isLocationServicesEnabled(this)) {
+                if (userLocation != null) {
+                    nearbyPlacesAPI.getNearbyPlaces(userLocation, SEARCHRADIUS) { nearbyPlaces ->
+                        showPopup(nearbyPlaces)
+                    }
+                }
+            } else {
+                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                this.startActivity(intent)
             }
         }
 
     }
 
-
+    private fun isLocationServicesEnabled(context: Context): Boolean {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         val inflater = menuInflater
         inflater.inflate(R.menu.map_options, menu)
         return true
+    }
+
+    private fun showPopup(places: List<com.google.android.libraries.places.api.model.Place>) {
+        val dialog = Dialog(this)
+        dialog.setContentView(R.layout.popup_layout)
+
+        // Access the TextView inside the popup layout
+        val popupTextView: TextView = dialog.findViewById(R.id.popup)
+        var tempText : String = ""
+        var temp = removeDuplicatePlaces(places)
+
+        for(place in temp){
+            tempText += "${place.name}, ${place.latLng}"
+            Log.d("Testing", "${place.name}, ${place.latLng}")
+        }
+        popupTextView.text = tempText
+        dialog.show()
+    }
+    // Function to remove duplicate places based on their ID
+    fun removeDuplicatePlaces(places: List<com.google.android.libraries.places.api.model.Place>): MutableList<com.google.android.libraries.places.api.model.Place> {
+        val uniquePlaces = mutableListOf<com.google.android.libraries.places.api.model.Place>()
+        val uniqueLatLng = mutableSetOf<LatLng>()
+
+        for (place in places) {
+            val latLng = roundLatLng(place.latLng, 2)
+            if (latLng != null && !uniqueLatLng.contains(latLng)) {
+                uniqueLatLng.add(latLng)
+                uniquePlaces.add(place)
+            }
+        }
+        return uniquePlaces
+    }
+    fun roundLatLng(latLng: LatLng, decimalPlaces: Int): LatLng {
+        val lat = round(latLng.latitude * 10.0.pow(decimalPlaces)) / 10.0.pow(decimalPlaces)
+        val lng = round(latLng.longitude * 10.0.pow(decimalPlaces)) / 10.0.pow(decimalPlaces)
+        return LatLng(lat, lng)
+    }
+    private fun addCircle(latLng: LatLng, radius: Double){
+        var circleOptions : CircleOptions = CircleOptions()
+        circleOptions.center(latLng)
+        circleOptions.radius(radius)
+        circleOptions.strokeColor(Color.argb(255,255,0,0))
+        circleOptions.fillColor(Color.argb(64,255,0,0))
+        circleOptions.strokeWidth(4F)
+        map.addCircle(circleOptions)
     }
 
     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
